@@ -1,0 +1,28 @@
+# Example docker-compose.yml for Emby with the ARM64 Roku fix
+# Adjust paths and environment variables to match your setup.
+
+services:
+  emby:
+    image: lscr.io/linuxserver/emby:latest
+    container_name: emby
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ=America/Chicago      # Your timezone
+      - PUID=1000               # Your user ID (run: id -u)
+      - PGID=1000               # Your group ID (run: id -g)
+    volumes:
+      # Emby config — persistent data, users, settings
+      - ./config:/config
+
+      # Transcode scratch space
+      - ./transcode:/transcode
+
+      # ARM64 Roku fix — this mount is required
+      # The init script runs automatically on container start
+      - ./custom-cont-init.d:/custom-cont-init.d:ro
+
+      # Your media libraries (adjust these paths)
+      # - /path/to/movies:/movies
+      # - /path/to/tv:/tv
+      # - /path/to/music:/music
