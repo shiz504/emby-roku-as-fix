@@ -273,9 +273,14 @@ The hardware detection file is the single most useful piece of diagnostic info �
 
 ## Community Feedback
 
-This repo was just published. If you try it on your setup, please [open an issue](https://github.com/shiz504/emby-roku-as-fix/issues) or [start a discussion](https://github.com/shiz504/emby-roku-as-fix/issues) to report whether it worked or not — include your Mac model, chip, and Emby version so the tested configurations list can grow.
+This repo was just published. If you try it on your setup, please [open an issue](https://github.com/shiz504/emby-roku-as-fix/issues) or reply to the original post to report whether it worked or not — include your Mac model, chip, and Emby version so the tested configurations list can grow.
 
-Success and failure reports are both valuable. The more hardware combinations confirmed, the better this fix can serve the Emby community.
+If the fix doesn't work for you, or you run into problems:
+- Check the Troubleshooting table above first.
+- Share your `docker logs emby | grep "fix-ffmpeg"` output.
+- Include your Emby version, linuxserver image tag, and Roku model.
+
+Success and failure reports are both valuable. The more hardware combinations confirmed, the better this fix can serve the Emby community. Feel free to open an Issue on GitHub — I'm happy to help improve it!
 
 ---
 
