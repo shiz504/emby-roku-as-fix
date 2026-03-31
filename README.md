@@ -234,14 +234,48 @@ The wrappers are recreated on every container start, so the fix survives image u
 
 ## Tested On
 
-- **Host:** Mac mini M4 (Apple Silicon)
-- **Docker:** Docker Desktop for Mac
-- **Image:** `lscr.io/linuxserver/emby:latest` (ARM64)
-- **Emby:** 4.9.3.0
-- **Client:** Roku Streambar SE
-- **Live TV:** IPTV via M3U tuner with XMLTV guide
+| Component | Confirmed Version |
+|-----------|-------------------|
+| **Mac** | Mac mini (M4, Model Mac16,10) |
+| **macOS** | 26.3.1 (Build 25D771280a) |
+| **Docker Desktop** | 29.2.1 (Engine 29.2.1) |
+| **Emby Image** | `lscr.io/linuxserver/emby:latest` (ARM64) |
+| **Emby Server** | 4.9.3.0 |
+| **Architecture** | aarch64 (ARM64) |
+| **Client** | Roku Streambar SE |
+| **Live TV Source** | IPTV via M3U tuner with XMLTV guide |
 
-Should work on any Apple Silicon Mac (M1, M2, M3, M4, Pro, Max, Ultra variants).
+> This is the only confirmed configuration. The fix should work on any Apple Silicon Mac (M1, M2, M3, M4, Pro, Max, Ultra variants) with Docker Desktop and the linuxserver/emby ARM64 image, but only the configuration above has been fully validated end-to-end.
+
+---
+
+## Reporting Issues
+
+If you run into problems, [open a GitHub issue](https://github.com/shiz504/emby-roku-as-fix/issues) and include the following:
+
+1. **Mac model and chip** — e.g., Mac mini M4, MacBook Pro M2 Pro
+2. **macOS version** — run `sw_vers`
+3. **Docker version** — run `docker version`
+4. **Emby server version** — visible in Emby Dashboard > Server info
+5. **Docker image tag** — run `docker inspect emby --format '{{.Config.Image}}'`
+6. **Hardware detection output** — the contents of the most recent `hardware_detection-*.txt` file:
+   ```bash
+   cat $(ls -t /path/to/emby/config/logs/hardware_detection-*.txt | head -1)
+   ```
+7. **Emby container logs** (last 50 lines):
+   ```bash
+   docker logs emby 2>&1 | tail -50
+   ```
+
+The hardware detection file is the single most useful piece of diagnostic info — it shows whether `IsEmbyCustom` is true, what `VideoEncoders` are detected, and the full ffmpeg version string.
+
+---
+
+## Community Feedback
+
+This repo was just published. If you try it on your setup, please [open an issue](https://github.com/shiz504/emby-roku-as-fix/issues) or [start a discussion](https://github.com/shiz504/emby-roku-as-fix/issues) to report whether it worked or not — include your Mac model, chip, and Emby version so the tested configurations list can grow.
+
+Success and failure reports are both valuable. The more hardware combinations confirmed, the better this fix can serve the Emby community.
 
 ---
 
