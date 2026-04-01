@@ -247,6 +247,25 @@ The wrappers are recreated on every container start, so the fix survives image u
 
 > This is the only confirmed configuration. The fix should work on any Apple Silicon Mac (M1, M2, M3, M4, Pro, Max, Ultra variants) with Docker Desktop and the linuxserver/emby ARM64 image, but only the configuration above has been fully validated end-to-end.
 
+### Official Emby Image
+
+The official Emby ARM64 image (`emby/embyserver_arm64v8:latest`) was tested on April 1, 2026 and **does not have this issue**. All tested channels (Big Ten Network, ESPN, CBS WWL, SEC Network) produced valid HLS segments using copy-codec on the unpatched official image.
+
+The root cause is specific to how the linuxserver image packages the container environment:
+
+| | linuxserver/emby | emby/embyserver_arm64v8 |
+|---|---|---|
+| `LD_LIBRARY_PATH` set at container level | No | Yes (`/lib:/system`) |
+| ffmpeg starts cleanly on ARM64 | No (crashes/hangs) | Yes |
+| Copy-codec HLS works for Roku | No (stalls/buffers) | Yes |
+| Needs this fix | **Yes** | **No** |
+
+The linuxserver image does not set `LD_LIBRARY_PATH` at the container level. When Emby injects its own library paths into ffmpeg at runtime, the loader environment breaks on ARM64. The official image pre-sets the correct paths, so ffmpeg launches cleanly.
+
+If you can switch to `emby/embyserver_arm64v8`, you do not need this fix. However, the official image does not support linuxserver features like `custom-cont-init.d` hooks, and many ARM64 Docker users run the linuxserver image.
+
+See [`docs/official-image-test-report.md`](docs/official-image-test-report.md) for the full comparison.
+
 ---
 
 ## Reporting Issues
