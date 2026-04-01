@@ -249,22 +249,21 @@ The wrappers are recreated on every container start, so the fix survives image u
 
 ### Official Emby Image
 
-The official Emby ARM64 image (`emby/embyserver_arm64v8:latest`) was tested on April 1, 2026 and **does not have this issue**. All tested channels (Big Ten Network, ESPN, CBS WWL, SEC Network) produced valid HLS segments using copy-codec on the unpatched official image.
+The official Emby ARM64 image (`emby/embyserver_arm64v8:latest`) was tested on April 1, 2026 with 10 channels and a Roku-like device profile.
 
-The root cause is specific to how the linuxserver image packages the container environment:
+**LD_LIBRARY_PATH finding:** The official image sets `LD_LIBRARY_PATH=/lib:/system` at the container level, so ffmpeg does not crash on ARM64. The LD_LIBRARY_PATH poisoning (Problem 1) is confirmed as linuxserver-specific.
 
 | | linuxserver/emby | emby/embyserver_arm64v8 |
 |---|---|---|
 | `LD_LIBRARY_PATH` set at container level | No | Yes (`/lib:/system`) |
 | ffmpeg starts cleanly on ARM64 | No (crashes/hangs) | Yes |
-| Copy-codec HLS works for Roku | No (stalls/buffers) | Yes |
-| Needs this fix | **Yes** | **No** |
+| Needs this fix for ffmpeg crash | **Yes** | **No** |
 
-The linuxserver image does not set `LD_LIBRARY_PATH` at the container level. When Emby injects its own library paths into ffmpeg at runtime, the loader environment breaks on ARM64. The official image pre-sets the correct paths, so ffmpeg launches cleanly.
+**However, real Roku playback may still fail on the official image.** API-level testing showed valid HLS segments being produced with copy-codec, but real-world Roku testing showed playback failures on the official image. The copy-codec passthrough preserves source stream characteristics (variable GOP, high H.264 levels, non-standard timing) that a real Roku may not handle. The fix's copy-to-libx264 rewrite produces Roku-compatible output with controlled profiles, levels, and low-latency tuning that copy-codec cannot guarantee.
 
-If you can switch to `emby/embyserver_arm64v8`, you do not need this fix. However, the official image does not support linuxserver features like `custom-cont-init.d` hooks, and many ARM64 Docker users run the linuxserver image.
+The official image also does not support linuxserver features like `custom-cont-init.d` hooks.
 
-See [`docs/official-image-test-report.md`](docs/official-image-test-report.md) for the full comparison.
+See [`docs/official-image-test-report.md`](docs/official-image-test-report.md) for the full 10-channel comparison with ffprobe codec analysis.
 
 ---
 

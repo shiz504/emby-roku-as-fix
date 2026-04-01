@@ -1,6 +1,6 @@
 # Official Emby ARM64 Image Test Report
 
-**Date:** April 1, 2026
+**Date:** April 1, 2026 (two test runs)
 **Host:** Mac mini M4 (Apple Silicon ARM64)
 **macOS:** 26.3.1
 **Docker:** 29.2.1
@@ -38,40 +38,72 @@ The linuxserver image does NOT set `LD_LIBRARY_PATH` at the container level. Whe
 
 ## HLS Live TV Test Results (Unpatched Official Image)
 
-All tests used the Roku HLS playback path with device profile requesting h264/aac in ts container.
+All tests used a Roku-like device profile (h264 Main/High up to Level 4.1, 1920x1080, 8-bit, aac audio, HLS ts container with BreakOnNonKeyFrames). Client identified as "Roku Streambar".
 
-| Channel | ID | HLS Segments | Copy-Codec | Segment Size | Result |
-|---|---|---|---|---|---|
-| BIG TEN NETWORK | 477 | Yes, valid `.ts` | `-c:v:0 copy -c:a:0 copy` | 1.3-1.5 MB | **WORKING** |
-| ESPN | 408 | Yes, valid `.ts` | `-c:v:0 copy -c:a:0 copy` | Producing | **WORKING** |
-| CBS (WWL) New Orleans | 70 | Yes, valid `.ts` | `-c:v:0 copy -c:a:0 copy` | Producing | **WORKING** |
-| SEC NETWORK | 482 | Yes, valid `.ts` | `-c:v:0 copy -c:a:0 copy` | Producing | **WORKING** |
+### 10-Channel Test (Run 2, Deep Validation)
 
-All 4 channels produced valid HLS playlists with real `.ts` segment entries. Zero encoder errors. All used the copy-codec directstream path.
+| Channel | ID | Segs | Seg0 Size | Codec | H.264 Profile | Level | Res | ffmpeg Mode | Result |
+|---|---|---|---|---|---|---|---|---|---|
+| BIG TEN NETWORK | 477 | 6 | 740K | h264/aac | Main | 4.0 | 1280x720 | copy/copy | OK |
+| ESPN | 408 | 7 | 3626K | h264/aac | High | 4.0 | 1280x720 | copy/copy | OK |
+| ESPN2 | 411 | 3 | 2229K | h264/aac | High | 4.0 | 1280x720 | copy/copy | OK |
+| CBS (WWL) | 70 | 3 | 378K | h264/aac | Main | 3.1 | 960x540 | copy/copy | OK |
+| FOX (WVUE) | 71 | 3 | 2717K | h264/aac | High | 4.0 | 1280x720 | copy/copy | OK |
+| SEC NETWORK | 482 | 5 | 3268K | h264/aac | High | 4.0 | 1280x720 | copy/copy | OK |
+| FOX SPORTS 1 | 414 | 4 | 1486K | h264/aac | Main | 4.0 | 1280x720 | copy/copy | OK |
+| NFL NETWORK | 418 | 3 | 2054K | h264/aac | Main | **4.2** | **1920x1080** | copy/copy | **RISK** |
+| CBSSN | 485 | 7 | 1283K | h264/aac | Main | 4.0 | 1280x720 | copy/copy | OK |
+| ACC NETWORK | 475 | 3 | 3545K | h264/aac | High | 4.0 | 1280x720 | copy/copy | OK |
 
-## Conclusion
+All segments validated with ffprobe. All are valid H.264/AAC MPEG-TS.
 
-**The official Emby ARM64 image (`emby/embyserver_arm64v8`) does NOT have the Roku Live TV issue.**
+### Transcode Command Breakdown
 
-The copy-codec HLS path (`-c:v:0 copy -c:a:0 copy`) works correctly on the official image because:
+| Mode | Count | Description |
+|---|---|---|
+| `copy/copy` (directstream) | 8 | Video and audio passthrough |
+| `copy/aac` (remux) | 1 | Video passthrough, audio re-encoded to AAC |
+| `libx264/copy` (transcode) | 1 | Full video transcode (CBSSN, triggered by Roku codec profile constraints) |
 
-1. `LD_LIBRARY_PATH` is set correctly at the container level (`/lib:/system`), preventing the loader poisoning that crashes ffmpeg on the linuxserver image
-2. ffmpeg launches cleanly with the correct shared libraries
-3. The copy-codec segments are valid and playable
+Zero encoder errors. Zero ffmpeg crashes. Zero segment write failures.
 
-**The issue is isolated to the linuxserver/emby image packaging on ARM64.** The linuxserver image does not set `LD_LIBRARY_PATH` at the container level, which causes Emby's runtime library injection to break ffmpeg on Apple Silicon.
+## Important Caveats
 
-## Implications for the Fix
+### What this test proves
 
-The `emby-roku-as-fix` wrapper scripts solve two problems:
-1. **LD_LIBRARY_PATH poisoning** — linuxserver-specific, not present in official image
-2. **Copy-codec HLS rewrite** — the official image proves copy-codec works fine when ffmpeg starts cleanly, so the rewrite in the wrapper may be addressing a symptom of Problem 1 rather than an independent failure
+- ffmpeg launches cleanly on the official image (no LD_LIBRARY_PATH crash)
+- Emby produces HLS playlists with valid `.ts` segment entries
+- Segments contain valid H.264/AAC content confirmed by ffprobe
+- The copy-codec directstream path executes without errors
 
-Users of the official Emby ARM64 image should not need this fix. The fix is specifically for `lscr.io/linuxserver/emby` on Apple Silicon.
+### What this test does NOT prove
+
+- **Actual Roku playback was not tested.** These tests used API-level requests simulating a Roku device profile via curl. No physical Roku client was pointed at the test container.
+- **The repo owner previously tested the official image with a real Roku and it did not work.** API-level segment generation and real Roku playback are different things.
+- Copy-codec segments may have characteristics (timing, GOP structure, segment boundaries, metadata) that cause real Roku hardware to buffer or fail even when the segments contain valid codec data.
+
+### NFL Network Level 4.2 Risk
+
+NFL Network (CH 418) produces H.264 at Level 4.2 and 1920x1080. Roku's documented spec limit is Level 4.1. Because this is a copy-codec passthrough, Emby does not re-encode to bring it within spec. A real Roku may reject or struggle with this stream. On the linuxserver patched image, the wrapper rewrites this to libx264 which produces Level-compliant output.
+
+## Revised Conclusion
+
+**Server-side, the official Emby ARM64 image produces HLS segments without the LD_LIBRARY_PATH crash.** The LD_LIBRARY_PATH poisoning issue is confirmed as linuxserver-specific.
+
+**However, the copy-codec HLS path may still cause Roku playback failures** that are not detectable via API testing alone. The repo owner's real-world Roku testing showed failures on the official image that these API tests cannot reproduce. Possible causes:
+
+1. Copy-codec passthrough preserves source stream characteristics (high level, variable GOP, non-standard timing) that Roku cannot handle
+2. Segment boundary alignment in copy mode may produce segments that confuse Roku's HLS parser
+3. The absence of low-latency tuning (superfast, zerolatency, short GOP) means cold-start timing may be too slow for Roku
+
+**The fix's copy-to-libx264 rewrite may address a real Roku compatibility issue independent of the LD_LIBRARY_PATH problem.** The wrapper's value may be:
+
+1. On linuxserver: fixes BOTH the crash AND the Roku compatibility issue
+2. On official: fixes only the Roku compatibility issue (no crash to fix)
 
 ## Recommendation
 
-Update the GitHub README to note:
-- The issue is confirmed to be linuxserver-specific
-- The official `emby/embyserver_arm64v8` image works correctly for Roku Live TV on ARM64
-- Users who can switch to the official image may not need the fix, but lose the linuxserver `custom-cont-init.d` hook system and other linuxserver features
+- The fix is confirmed necessary for `lscr.io/linuxserver/emby` on Apple Silicon
+- The fix MAY also be needed for `emby/embyserver_arm64v8` if real Roku playback fails with copy-codec
+- Final determination requires a real Roku pointed at the official image, which is beyond API-level testing
+- The README should note this nuance rather than stating the official image definitively works
