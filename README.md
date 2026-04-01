@@ -249,21 +249,7 @@ The wrappers are recreated on every container start, so the fix survives image u
 
 ### Official Emby Image
 
-The official Emby ARM64 image (`emby/embyserver_arm64v8:latest`) was tested on April 1, 2026 with 10 channels and a Roku-like device profile.
-
-**LD_LIBRARY_PATH finding:** The official image sets `LD_LIBRARY_PATH=/lib:/system` at the container level, so ffmpeg does not crash on ARM64. The LD_LIBRARY_PATH poisoning (Problem 1) is confirmed as linuxserver-specific.
-
-| | linuxserver/emby | emby/embyserver_arm64v8 |
-|---|---|---|
-| `LD_LIBRARY_PATH` set at container level | No | Yes (`/lib:/system`) |
-| ffmpeg starts cleanly on ARM64 | No (crashes/hangs) | Yes |
-| Needs this fix for ffmpeg crash | **Yes** | **No** |
-
-**However, real Roku playback may still fail on the official image.** API-level testing showed valid HLS segments being produced with copy-codec, but real-world Roku testing showed playback failures on the official image. The copy-codec passthrough preserves source stream characteristics (variable GOP, high H.264 levels, non-standard timing) that a real Roku may not handle. The fix's copy-to-libx264 rewrite produces Roku-compatible output with controlled profiles, levels, and low-latency tuning that copy-codec cannot guarantee.
-
-The official image also does not support linuxserver features like `custom-cont-init.d` hooks.
-
-See [`docs/official-image-test-report.md`](docs/official-image-test-report.md) for the full 10-channel comparison with ffprobe codec analysis.
+This fix targets the `lscr.io/linuxserver/emby` image specifically. The LD_LIBRARY_PATH issue that causes ffmpeg to crash on ARM64 is confirmed to be linuxserver-specific. Further testing on the official Emby container (`emby/embyserver_arm64v8`) is TBD.
 
 ---
 
